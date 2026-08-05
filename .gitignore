@@ -1,0 +1,6 @@
+.idea
+.debug
+.vscode
+.env*
+coverage.txt
+tmp/
