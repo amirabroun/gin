@@ -2,38 +2,27 @@ package main
 
 import (
 	"fmt"
-	"github.com/gin-gonic/gin"
-	"net/http"
-
-	"github.com/joho/godotenv"
 	"log"
 	"os"
 
+	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+
+	"gin-quickstart/handlers"
+	"gin-quickstart/repository"
 )
 
-type User struct {
-	ID               uint `gorm:"primaryKey"`
-	Contact          string
-	SubscriberId     uint
-	SubscriberUserId uint
-}
+func main() {
+	db := initDB()
 
-type Handler struct {
-	db *gorm.DB
-}
+	router := gin.Default()
+	router.SetTrustedProxies(nil)
 
-func NewHandler(db *gorm.DB) *Handler {
-	return &Handler{db: db}
-}
+	router.GET("users/:id", handlers.NewUserHandler(repository.NewUserRepository(db)).GetUser)
 
-func (h *Handler) getUser(ctx *gin.Context) {
-	user := User{}
-
-	h.db.Where("id = ?", ctx.Param("id")).First(&user)
-
-	ctx.JSON(http.StatusOK, user)
+	router.Run(":8090")
 }
 
 func initDB() *gorm.DB {
@@ -58,18 +47,4 @@ func initDB() *gorm.DB {
 	}
 
 	return db
-}
-
-func main() {
-	db := initDB()
-
-	h := NewHandler(db)
-
-	router := gin.Default()
-
-	router.SetTrustedProxies(nil)
-
-	router.GET("users/:id", h.getUser)
-
-	router.Run(":8090")
 }
