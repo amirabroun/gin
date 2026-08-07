@@ -6,7 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"gin-quickstart/repository"
+	"gin/repository"
 )
 
 type UserHandler struct {

@@ -3,7 +3,7 @@ package repository
 import (
 	"gorm.io/gorm"
 
-	"gin-quickstart/models"
+	"gin/models"
 )
 
 type UserRepository interface {
