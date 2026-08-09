@@ -8,7 +8,7 @@ import (
 
 type UserRepository interface {
 	FindByID(id uint) (*models.User, error)
-	FindByContact(contact string) (*models.User, error)
+	FindByMobile(mobile string) (*models.User, error)
 }
 
 type userRepository struct {
@@ -27,10 +27,10 @@ func (r *userRepository) FindByID(id uint) (*models.User, error) {
 	return &user, nil
 }
 
-func (r *userRepository) FindByContact(contact string) (*models.User, error) {
+func (r *userRepository) FindByMobile(mobile string) (*models.User, error) {
 	var user models.User
 
-	err := r.db.Where("contact", contact).First(&user).Error
+	err := r.db.Where("mobile", mobile).First(&user).Error
 
 	if err != nil {
 		return nil, err

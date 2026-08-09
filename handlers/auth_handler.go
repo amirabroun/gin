@@ -20,7 +20,7 @@ func NewAuthHandler(repo repository.UserRepository) *AuthHandler {
 }
 
 type loginRequest struct {
-	Contact  string `json:"contact" binding:"required"`
+	Mobile   string `json:"mobile" binding:"required"`
 	Password string `json:"password" binding:"required"`
 }
 
@@ -32,7 +32,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	user, err := h.repo.FindByContact(request.Contact)
+	user, err := h.repo.FindByMobile(request.Mobile)
 
 	if err != nil || !checkPassword(request.Password, user.Password) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
