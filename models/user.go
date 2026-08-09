@@ -8,6 +8,7 @@ import (
 type User struct {
 	ID               uint `gorm:"primaryKey"`
 	Contact          string
+	Password         string
 	SubscriberId     uint
 	SubscriberUserId uint
 	JointSurveys     []JointSurvey

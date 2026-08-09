@@ -7,7 +7,8 @@ import (
 )
 
 type UserRepository interface {
-	FindByID(id int) (*models.User, error)
+	FindByID(id uint) (*models.User, error)
+	FindByContact(contact string) (*models.User, error)
 }
 
 type userRepository struct {
@@ -18,10 +19,22 @@ func NewUserRepository(db *gorm.DB) *userRepository {
 	return &userRepository{db: db}
 }
 
-func (r *userRepository) FindByID(id int) (*models.User, error) {
+func (r *userRepository) FindByID(id uint) (*models.User, error) {
 	var user models.User
 	if err := r.db.First(&user, id).Error; err != nil {
 		return nil, err
 	}
+	return &user, nil
+}
+
+func (r *userRepository) FindByContact(contact string) (*models.User, error) {
+	var user models.User
+
+	err := r.db.Where("contact", contact).First(&user).Error
+
+	if err != nil {
+		return nil, err
+	}
+
 	return &user, nil
 }
