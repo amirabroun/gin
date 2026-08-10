@@ -10,17 +10,10 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"gin/database"
+	"gin/handlers"
 	"gin/repository"
 	"gin/router"
 )
-
-const mobile = "09121234567"
-const passord = "123456"
-
-type loginRequest struct {
-	Mobile   string `json:"mobile" binding:"required"`
-	Password string `json:"password" binding:"required"`
-}
 
 func TestGetAuthUserPosts(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -56,7 +49,7 @@ func setupRouter(t *testing.T) *gin.Engine {
 func getToken(t *testing.T, router *gin.Engine) string {
 	t.Helper()
 
-	body := loginRequest{Mobile: mobile, Password: passord}
+	body := handlers.LoginRequest{Mobile: "09121234567", Password: "123456"}
 
 	bodyBytes, err := json.Marshal(body)
 

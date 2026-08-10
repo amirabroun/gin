@@ -19,13 +19,13 @@ func NewAuthHandler(repo repository.UserRepository) *AuthHandler {
 	}
 }
 
-type loginRequest struct {
+type LoginRequest struct {
 	Mobile   string `json:"mobile" binding:"required"`
 	Password string `json:"password" binding:"required"`
 }
 
 func (h *AuthHandler) Login(c *gin.Context) {
-	var request loginRequest
+	var request LoginRequest
 
 	if err := c.ShouldBindJSON(&request); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
