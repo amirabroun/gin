@@ -12,30 +12,20 @@ import (
 type App struct {
 	DB      *gorm.DB
 	Router  *gin.Engine
-	Modules Modules
-}
-
-type Modules struct {
-	User *user.Module
+	Modules *Modules
 }
 
 func New() *App {
+	db := database.InitDB()
+
 	app := &App{
-		DB:     database.InitDB(),
-		Router: gin.Default(),
+		DB:      db,
+		Router:  gin.Default(),
+		Modules: NewModules(db),
 	}
 
 	app.Router.SetTrustedProxies(nil)
-
-	app.registerModules()
-
 	app.registerRoutes()
-
-	return app
-}
-
-func (app *App) registerModules() *App {
-	app.Modules.User = user.New(app.DB)
 
 	return app
 }
@@ -46,4 +36,14 @@ func (app *App) registerRoutes() *App {
 	app.Router.GET("posts", app.Modules.User.Middleware.RequireAuth(), app.Modules.User.Handler.GetAuthUserPosts)
 
 	return app
+}
+
+type Modules struct {
+	User *user.Module
+}
+
+func NewModules(db *gorm.DB) *Modules {
+	return &Modules{
+		User: user.New(db),
+	}
 }
