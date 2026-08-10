@@ -1,16 +1,19 @@
 package middleware
 
 import (
-	"gin/repository"
-	"gin/utils"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
+
+	"gin/repository"
+	"gin/utils"
 )
 
 func AuthMiddleware(repo repository.UserRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		token := c.GetHeader("Authorization")
+		token = strings.TrimPrefix(token, "Bearer ")
 
 		if token == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "not have token"})
