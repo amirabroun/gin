@@ -6,15 +6,20 @@ import (
 	"gin/models"
 )
 
-type UserRepository struct {
+type UserRepository interface {
+	FindByID(id uint, with ...string) (*models.User, error)
+	FindByMobile(mobile string) (*models.User, error)
+}
+
+type userRepository struct {
 	db *gorm.DB
 }
 
-func New(db *gorm.DB) *UserRepository {
-	return &UserRepository{db: db}
+func New(db *gorm.DB) *userRepository {
+	return &userRepository{db: db}
 }
 
-func (r *UserRepository) FindByID(id uint, with ...string) (*models.User, error) {
+func (r *userRepository) FindByID(id uint, with ...string) (*models.User, error) {
 	var user models.User
 
 	query := r.db
@@ -32,7 +37,7 @@ func (r *UserRepository) FindByID(id uint, with ...string) (*models.User, error)
 	return &user, nil
 }
 
-func (r *UserRepository) FindByMobile(mobile string) (*models.User, error) {
+func (r *userRepository) FindByMobile(mobile string) (*models.User, error) {
 	var user models.User
 
 	err := r.db.Where("mobile", mobile).First(&user).Error

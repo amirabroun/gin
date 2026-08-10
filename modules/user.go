@@ -9,7 +9,7 @@ import (
 )
 
 type Module struct {
-	Repository *repository.UserRepository
+	Repository repository.UserRepository
 	Handler    *handlers.UserHandler
 	Middleware *middleware.Middleware
 }
@@ -17,11 +17,11 @@ type Module struct {
 func New(db *gorm.DB) *Module {
 	repo := repository.New(db)
 	handler := handlers.New(repo)
-	middleware := middleware.New(*repo)
+	authMiddleware := middleware.New(repo)
 
 	return &Module{
 		Repository: repo,
 		Handler:    handler,
-		Middleware: middleware,
+		Middleware: authMiddleware,
 	}
 }
