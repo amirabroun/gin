@@ -1,25 +1,15 @@
 package main
 
 import (
-	"github.com/gin-gonic/gin"
-
 	"gin/database"
-	"gin/handlers"
-	"gin/middleware"
 	"gin/repository"
+	"gin/router"
 )
 
 func main() {
 	db := database.InitDB()
 
-	router := gin.Default()
-	router.SetTrustedProxies(nil)
-
 	userRepo := repository.NewUserRepository(db)
-	userHandler := handlers.NewUserHandler(userRepo)
 
-	router.GET("users/:id", userHandler.GetUser)
-	router.GET("posts", middleware.AuthMiddleware(userRepo), userHandler.GetAuthUserPosts)
-
-	router.Run(":8090")
+	router.SetupRouter(userRepo).Run(":8090")
 }
