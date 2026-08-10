@@ -6,6 +6,7 @@ type User struct {
 	ID       uint `gorm:"primaryKey"`
 	Mobile   string
 	Password string
+	Posts    []Post
 }
 
 func (u User) String() string {

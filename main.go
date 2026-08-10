@@ -5,6 +5,7 @@ import (
 
 	"gin/database"
 	"gin/handlers"
+	"gin/middleware"
 	"gin/repository"
 )
 
@@ -18,6 +19,7 @@ func main() {
 	userHandler := handlers.NewUserHandler(userRepo)
 
 	router.GET("users/:id", userHandler.GetUser)
+	router.GET("posts", middleware.AuthMiddleware(userRepo), userHandler.GetAuthUserPosts)
 
 	router.Run(":8090")
 }

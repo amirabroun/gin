@@ -7,7 +7,7 @@ import (
 )
 
 type UserRepository interface {
-	FindByID(id uint) (*models.User, error)
+	FindByID(id uint, with ...string) (*models.User, error)
 	FindByMobile(mobile string) (*models.User, error)
 }
 
@@ -19,11 +19,21 @@ func NewUserRepository(db *gorm.DB) *userRepository {
 	return &userRepository{db: db}
 }
 
-func (r *userRepository) FindByID(id uint) (*models.User, error) {
+func (r *userRepository) FindByID(id uint, with ...string) (*models.User, error) {
 	var user models.User
-	if err := r.db.First(&user, id).Error; err != nil {
+
+	query := r.db
+
+	for _, relation := range with {
+		query = query.Preload(relation)
+	}
+
+	err := r.db.First(&user, id).Error
+
+	if err != nil {
 		return nil, err
 	}
+
 	return &user, nil
 }
 
