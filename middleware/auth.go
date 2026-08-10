@@ -10,7 +10,7 @@ import (
 	"gin/utils"
 )
 
-func AuthMiddleware(repo repository.UserRepository) gin.HandlerFunc {
+func AuthMiddleware(repo *repository.UserRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		token := c.GetHeader("Authorization")
 		token = strings.TrimPrefix(token, "Bearer ")

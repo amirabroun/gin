@@ -9,10 +9,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"gin/database"
+	"gin/app"
 	"gin/handlers"
-	"gin/repository"
-	"gin/router"
 )
 
 func TestGetAuthUserPosts(t *testing.T) {
@@ -39,11 +37,9 @@ func TestGetAuthUserPosts(t *testing.T) {
 func setupRouter(t *testing.T) *gin.Engine {
 	t.Helper()
 
-	db := database.InitDB()
-	repo := repository.NewUserRepository(db)
-	router := router.SetupRouter(repo)
+	app := app.NewApp()
 
-	return router
+	return app.Router
 }
 
 func getToken(t *testing.T, router *gin.Engine) string {

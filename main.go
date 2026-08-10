@@ -1,15 +1,9 @@
 package main
 
-import (
-	"gin/database"
-	"gin/repository"
-	"gin/router"
-)
+import "gin/app"
 
 func main() {
-	db := database.InitDB()
+	app := app.NewApp()
 
-	userRepo := repository.NewUserRepository(db)
-
-	router.SetupRouter(userRepo).Run(":8090")
+	app.Router.Run("8090")
 }
