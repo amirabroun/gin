@@ -28,7 +28,7 @@ func (r *userRepository) FindByID(id uint, with ...string) (*models.User, error)
 		query = query.Preload(relation)
 	}
 
-	err := r.db.First(&user, id).Error
+	err := query.First(&user, id).Error
 
 	if err != nil {
 		return nil, err

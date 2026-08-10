@@ -25,7 +25,7 @@ func (h *UserHandler) GetUser(c *gin.Context) {
 		return
 	}
 
-	user, err := h.repo.FindByID(uint(id))
+	user, err := h.repo.FindByID(uint(id), "Posts")
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "not found any user"})
