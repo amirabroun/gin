@@ -1,17 +1,27 @@
 package utils
 
-import (
-	"gin/testhelpers"
-	"testing"
-)
+import "testing"
 
 func TestToken(t *testing.T) {
 	var id uint = 1
 
 	generatedToken, generateErr := GenerateToken(id)
 
+	if generateErr != nil {
+		t.Fatalf("unexpected error: %v", generateErr)
+	}
+
+	t.Log(generatedToken)
+
 	parsedId, parseErr := ParseToken(generatedToken)
 
-	testhelpers.AssertNoError(t, generateErr, generatedToken)
-	testhelpers.AssertNoError(t, parseErr, parsedId)
+	if parseErr != nil {
+		t.Fatalf("unexpected error: %v", generateErr)
+	}
+
+	if id != parsedId {
+		t.Fatal("token is not created in correct")
+	}
+
+	t.Log(parsedId)
 }
