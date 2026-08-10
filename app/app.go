@@ -1,12 +1,12 @@
 package app
 
 import (
-	"gin/database"
-	"gin/middleware"
-	"gin/modules"
+	"gorm.io/gorm"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
+
+	"gin/database"
+	user "gin/modules"
 )
 
 type App struct {
@@ -19,24 +19,31 @@ type Modules struct {
 	User *user.Module
 }
 
-func NewApp() *App {
-	db := database.InitDB()
-	router := gin.Default()
-
+func New() *App {
 	app := &App{
-		DB:     db,
-		Router: router,
+		DB:     database.InitDB(),
+		Router: gin.Default(),
 	}
 
 	app.Router.SetTrustedProxies(nil)
 
-	app.Modules.User = user.NewModule(db)
+	app.registerModules()
 
-	userRepo := app.Modules.User.Repository
+	app.registerRoutes()
 
-	router.POST("login", app.Modules.User.Handler.Login)
-	router.GET("users/:id", app.Modules.User.Handler.GetUser)
-	router.GET("posts", middleware.AuthMiddleware(userRepo), app.Modules.User.Handler.GetAuthUserPosts)
+	return app
+}
+
+func (app *App) registerModules() *App {
+	app.Modules.User = user.New(app.DB)
+
+	return app
+}
+
+func (app *App) registerRoutes() *App {
+	app.Router.POST("login", app.Modules.User.Handler.Login)
+	app.Router.GET("users/:id", app.Modules.User.Handler.GetUser)
+	app.Router.GET("posts", app.Modules.User.Middleware.RequireAuth(), app.Modules.User.Handler.GetAuthUserPosts)
 
 	return app
 }

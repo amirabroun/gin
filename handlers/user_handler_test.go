@@ -37,7 +37,7 @@ func TestGetAuthUserPosts(t *testing.T) {
 func setupRouter(t *testing.T) *gin.Engine {
 	t.Helper()
 
-	app := app.NewApp()
+	app := app.New()
 
 	return app.Router
 }

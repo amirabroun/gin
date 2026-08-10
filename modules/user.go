@@ -2,6 +2,7 @@ package user
 
 import (
 	"gin/handlers"
+	"gin/middleware"
 	"gin/repository"
 
 	"gorm.io/gorm"
@@ -10,14 +11,17 @@ import (
 type Module struct {
 	Repository *repository.UserRepository
 	Handler    *handlers.UserHandler
+	Middleware *middleware.Middleware
 }
 
-func NewModule(db *gorm.DB) *Module {
-	repo := repository.NewUserRepository(db)
-	handler := handlers.NewUserHandler(repo)
+func New(db *gorm.DB) *Module {
+	repo := repository.New(db)
+	handler := handlers.New(repo)
+	middleware := middleware.New(*repo)
 
 	return &Module{
 		Repository: repo,
-		Handler: handler,
+		Handler:    handler,
+		Middleware: middleware,
 	}
 }

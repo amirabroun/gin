@@ -10,7 +10,15 @@ import (
 	"gin/utils"
 )
 
-func AuthMiddleware(repo *repository.UserRepository) gin.HandlerFunc {
+type Middleware struct {
+	repo repository.UserRepository
+}
+
+func New(repo repository.UserRepository) *Middleware {
+	return &Middleware{repo: repo}
+}
+
+func (m *Middleware) RequireAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		token := c.GetHeader("Authorization")
 		token = strings.TrimPrefix(token, "Bearer ")
@@ -28,7 +36,7 @@ func AuthMiddleware(repo *repository.UserRepository) gin.HandlerFunc {
 			return
 		}
 
-		user, err := repo.FindByID(userId)
+		user, err := m.repo.FindByID(userId)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "not have token"})
 			c.Abort()
