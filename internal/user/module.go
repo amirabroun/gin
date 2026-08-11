@@ -1,6 +1,7 @@
 package user
 
 import (
+	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
 	"gin/internal/user/handler"
@@ -28,4 +29,10 @@ func New(db *gorm.DB) *Module {
 		Handler:    h,
 		Middleware: authMiddleware,
 	}
+}
+
+func (m *Module) RegisterRoutes(router *gin.Engine) {
+	router.POST("login", m.Handler.Login)
+	router.GET("users/:id", m.Handler.GetUser)
+	router.GET("posts", m.Middleware.RequireAuth(), m.Handler.GetAuthUserPosts)
 }

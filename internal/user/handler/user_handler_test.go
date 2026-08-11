@@ -38,6 +38,9 @@ func setupRouter(t *testing.T) *gin.Engine {
 	t.Helper()
 
 	app := app.New()
+	app.RegisterDefaultDatabase()
+	app.RegisterModules()
+	app.RegisterRoutes()
 
 	return app.Router
 }
