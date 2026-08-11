@@ -4,7 +4,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
-	"gin/internal/core"
 	"gin/internal/database"
 	user "gin/internal/user"
 )
@@ -12,7 +11,11 @@ import (
 type App struct {
 	DB      *gorm.DB
 	Router  *gin.Engine
-	Modules []core.Module
+	Modules []Module
+}
+
+type Module interface {
+	RegisterRoutes(router *gin.Engine)
 }
 
 func New() *App {
@@ -26,7 +29,7 @@ func (app *App) RegisterDefaultDatabase() {
 }
 
 func (app *App) RegisterModules() {
-	app.Modules = []core.Module{
+	app.Modules = []Module{
 		user.New(app.DB),
 	}
 }
