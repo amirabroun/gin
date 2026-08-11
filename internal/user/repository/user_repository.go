@@ -3,12 +3,12 @@ package repository
 import (
 	"gorm.io/gorm"
 
-	"gin/models"
+	"gin/internal/user/entity"
 )
 
 type UserRepository interface {
-	FindByID(id uint, with ...string) (*models.User, error)
-	FindByMobile(mobile string) (*models.User, error)
+	FindByID(id uint, with ...string) (*entity.User, error)
+	FindByMobile(mobile string) (*entity.User, error)
 }
 
 type userRepository struct {
@@ -19,8 +19,8 @@ func New(db *gorm.DB) *userRepository {
 	return &userRepository{db: db}
 }
 
-func (r *userRepository) FindByID(id uint, with ...string) (*models.User, error) {
-	var user models.User
+func (r *userRepository) FindByID(id uint, with ...string) (*entity.User, error) {
+	var user entity.User
 
 	query := r.db
 
@@ -37,8 +37,8 @@ func (r *userRepository) FindByID(id uint, with ...string) (*models.User, error)
 	return &user, nil
 }
 
-func (r *userRepository) FindByMobile(mobile string) (*models.User, error) {
-	var user models.User
+func (r *userRepository) FindByMobile(mobile string) (*entity.User, error) {
+	var user entity.User
 
 	err := r.db.Where("mobile", mobile).First(&user).Error
 

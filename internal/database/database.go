@@ -17,7 +17,7 @@ func projectRoot() string {
 	if !ok {
 		return "."
 	}
-	return filepath.Dir(filepath.Dir(filename))
+	return filepath.Dir(filepath.Dir(filepath.Dir(filename)))
 }
 
 func InitDB() *gorm.DB {

@@ -1,12 +1,11 @@
 package app
 
 import (
+	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
-	"github.com/gin-gonic/gin"
-
-	"gin/database"
-	user "gin/modules"
+	"gin/internal/database"
+	user "gin/internal/user"
 )
 
 type App struct {

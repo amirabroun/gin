@@ -6,8 +6,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"gin/repository"
-	"gin/utils"
+	"gin/internal/user/repository"
+	"gin/pkg/utils"
 )
 
 type Middleware struct {

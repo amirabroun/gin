@@ -1,22 +1,21 @@
-package handlers
+package handler
 
 import (
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"golang.org/x/crypto/bcrypt"
 
-	"gin/repository"
-	"gin/utils"
+	"gin/internal/user/service"
+	"gin/pkg/utils"
 )
 
 type UserHandler struct {
-	repo repository.UserRepository
+	svc *service.UserService
 }
 
-func New(repo repository.UserRepository) *UserHandler {
-	return &UserHandler{repo: repo}
+func New(svc *service.UserService) *UserHandler {
+	return &UserHandler{svc: svc}
 }
 
 type LoginRequest struct {
@@ -32,7 +31,7 @@ func (h *UserHandler) GetUser(c *gin.Context) {
 		return
 	}
 
-	user, err := h.repo.FindByID(uint(id), "Posts")
+	user, err := h.svc.GetByID(uint(id), "Posts")
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "not found any user"})
@@ -55,7 +54,7 @@ func (h *UserHandler) GetAuthUserPosts(c *gin.Context) {
 		return
 	}
 
-	user, err := h.repo.FindByID(userId, "Posts")
+	user, err := h.svc.GetByID(userId, "Posts")
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
 		return
@@ -72,9 +71,9 @@ func (h *UserHandler) Login(c *gin.Context) {
 		return
 	}
 
-	user, err := h.repo.FindByMobile(request.Mobile)
+	user, err := h.svc.Login(request.Mobile, request.Password)
 
-	if err != nil || !checkPassword(request.Password, user.Password) {
+	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
 		return
 	}
@@ -87,9 +86,4 @@ func (h *UserHandler) Login(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"token": token})
-}
-
-func checkPassword(password string, hash string) bool {
-	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
-	return err == nil
 }

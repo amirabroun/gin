@@ -1,4 +1,4 @@
-package handlers_test
+package handler_test
 
 import (
 	"bytes"
@@ -9,8 +9,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"gin/app"
-	"gin/handlers"
+	"gin/internal/app"
+	"gin/internal/user/handler"
 )
 
 func TestGetAuthUserPosts(t *testing.T) {
@@ -45,7 +45,7 @@ func setupRouter(t *testing.T) *gin.Engine {
 func getToken(t *testing.T, router *gin.Engine) string {
 	t.Helper()
 
-	body := handlers.LoginRequest{Mobile: "09121234567", Password: "123456"}
+	body := handler.LoginRequest{Mobile: "09121234567", Password: "123456"}
 
 	bodyBytes, err := json.Marshal(body)
 
