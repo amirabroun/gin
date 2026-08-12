@@ -1,8 +1,9 @@
 package user
 
 import (
-	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+
+	"github.com/gin-gonic/gin"
 
 	"gin/internal/user/handler"
 	"gin/internal/user/middleware"
@@ -34,5 +35,10 @@ func New(db *gorm.DB) *Module {
 func (m *Module) RegisterRoutes(router *gin.Engine) {
 	router.POST("login", m.Handler.Login)
 	router.GET("users/:id", m.Handler.GetUser)
-	router.GET("posts", m.Middleware.RequireAuth(), m.Handler.GetAuthUserPosts)
+
+	posts := router.Group("posts", m.Middleware.RequireAuth())
+	{
+		posts.POST("", m.Handler.StoreAuthUserPost)
+		posts.GET("", m.Handler.GetAuthUserPosts)
+	}
 }

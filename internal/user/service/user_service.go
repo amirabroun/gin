@@ -24,6 +24,10 @@ func (s *UserService) GetByID(id uint, with ...string) (*entity.User, error) {
 	return s.repo.FindByID(id, with...)
 }
 
+func (s *UserService) StoreUserPost(post entity.Post) error {
+	return s.repo.StorePost(post)
+}
+
 func (s *UserService) Login(mobile, password string) (*entity.User, error) {
 	user, err := s.repo.FindByMobile(mobile)
 	if err != nil {

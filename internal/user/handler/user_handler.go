@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"gin/internal/user/entity"
 	"gin/internal/user/service"
 	"gin/pkg/utils"
 )
@@ -21,6 +22,11 @@ func New(svc *service.UserService) *UserHandler {
 type LoginRequest struct {
 	Mobile   string `json:"mobile" binding:"required"`
 	Password string `json:"password" binding:"required"`
+}
+
+type CreatePost struct {
+	Title   string `json:"title" binding:"required"`
+	Content string `json:"content" binding:"required"`
 }
 
 func (h *UserHandler) GetUser(c *gin.Context) {
@@ -61,6 +67,42 @@ func (h *UserHandler) GetAuthUserPosts(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, user.Posts)
+}
+
+func (h *UserHandler) StoreAuthUserPost(c *gin.Context) {
+	authUserID, exists := c.Get("auth_user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	userId, ok := authUserID.(uint)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user id in context"})
+		return
+	}
+
+	var request CreatePost
+
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	post := entity.Post{
+		Title:   request.Title,
+		Content: request.Content,
+		UserID:  userId,
+	}
+
+	err := h.svc.StoreUserPost(post)
+
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, nil)
 }
 
 func (h *UserHandler) Login(c *gin.Context) {

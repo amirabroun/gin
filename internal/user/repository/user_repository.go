@@ -9,6 +9,7 @@ import (
 type UserRepository interface {
 	FindByID(id uint, with ...string) (*entity.User, error)
 	FindByMobile(mobile string) (*entity.User, error)
+	StorePost(post entity.Post) error
 }
 
 type userRepository struct {
@@ -35,6 +36,10 @@ func (r *userRepository) FindByID(id uint, with ...string) (*entity.User, error)
 	}
 
 	return &user, nil
+}
+
+func (r *userRepository) StorePost(post entity.Post) error {
+	return r.db.Create(&post).Error
 }
 
 func (r *userRepository) FindByMobile(mobile string) (*entity.User, error) {
