@@ -1,18 +1,20 @@
 package ws
 
-import "sync"
-
 type RoomMessage struct {
 	MemberIDs []uint
 	Payload   []byte
 }
 
+// Hub state (connections map) is owned exclusively by the Run goroutine.
+// All mutations must happen inside Run's select loop. Public methods
+// (Register, Unregister, PublishToRoom) only send on channels — they
+// must NEVER touch h.connections directly. If you're tempted to add
+// a method that reads/writes h.connections, it belongs inside Run.
 type Hub struct {
 	connections map[uint]*Client
 	register    chan *Client
 	unregister  chan *Client
 	roomMessage chan *RoomMessage
-	mu          sync.RWMutex
 }
 
 func New() *Hub {
@@ -37,64 +39,75 @@ func (h *Hub) Run() {
 			h.registerClient(client)
 
 		case client := <-h.unregister:
-			h.removeClients(client)
+			h.disconnect(client)
 
 		case roomMessage := <-h.roomMessage:
-			h.handleRoomMessage(roomMessage)
+			slow := h.sendToUsers(roomMessage.MemberIDs, roomMessage.Payload)
+			h.disconnect(slow...)
 		}
 	}
 }
 
 func (h *Hub) registerClient(client *Client) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
 	h.connections[client.userID] = client
+
+	h.broadcastPresence(client.userID, client.Contacts(), true)
+	h.sendOnlineContactsTo(client)
 }
 
-func (h *Hub) handleRoomMessage(roomMessage *RoomMessage) {
-	slowClients := h.deliver(roomMessage)
+func (h *Hub) sendOnlineContactsTo(client *Client) {
+	for _, contactID := range client.Contacts() {
+		if !h.isOnline(contactID) {
+			continue
+		}
 
-	h.removeClients(slowClients...)
+		client.Send(presenceEnvelope(contactID, true))
+	}
 }
 
-func (h *Hub) deliver(roomMessage *RoomMessage) []*Client {
-	var slowClients []*Client
+func (h *Hub) sendToUsers(userIDs []uint, payload []byte) []*Client {
+	var slow []*Client
 
-	h.mu.RLock()
-	defer h.mu.RUnlock()
-
-	for _, userID := range roomMessage.MemberIDs {
+	for _, userID := range userIDs {
 		client, ok := h.connections[userID]
 		if !ok {
 			continue
 		}
 
-		err := client.Send(roomMessage.Payload)
-
-		if err != nil {
-			slowClients = append(slowClients, client)
+		if err := client.Send(payload); err != nil {
+			slow = append(slow, client)
 		}
 	}
 
-	return slowClients
+	return slow
 }
 
-func (h *Hub) removeClients(clients ...*Client) {
-	var toClose []*Client
-
-	h.mu.Lock()
+func (h *Hub) disconnect(clients ...*Client) {
 	for _, client := range clients {
-		existing, ok := h.connections[client.userID]
-
-		if ok && existing == client {
-			delete(h.connections, client.userID)
-			toClose = append(toClose, client)
+		if h.connections[client.userID] != client {
+			continue
 		}
-	}
-	h.mu.Unlock()
 
-	for _, client := range toClose {
+		delete(h.connections, client.userID)
+		h.broadcastPresence(client.userID, client.Contacts(), false)
 		client.Close()
 	}
+}
+
+func (h *Hub) broadcastPresence(userID uint, contactIDs []uint, online bool) {
+	slow := h.sendToUsers(contactIDs, presenceEnvelope(userID, online))
+
+	h.disconnect(slow...)
+}
+
+func (h *Hub) isOnline(userID uint) bool {
+	_, ok := h.connections[userID]
+	return ok
+}
+
+func presenceEnvelope(userID uint, online bool) []byte {
+	return MustEnvelope(MessageTypePresence, PresencePayload{
+		UserID: userID,
+		Online: online,
+	})
 }

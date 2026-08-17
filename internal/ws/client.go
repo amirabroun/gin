@@ -18,6 +18,7 @@ const (
 
 type Client struct {
 	userID     uint
+	contacts   []uint
 	outbox     chan []byte
 	connection *websocket.Conn
 	closeOnce  sync.Once
@@ -29,6 +30,14 @@ func NewClient(userID uint, connection *websocket.Conn) *Client {
 		connection: connection,
 		outbox:     make(chan []byte, maxMessageSize),
 	}
+}
+
+func (c *Client) SetContacts(contactIDs []uint) {
+	c.contacts = contactIDs
+}
+
+func (c *Client) Contacts() []uint {
+	return c.contacts
 }
 
 func (c *Client) Send(message []byte) (err error) {

@@ -20,6 +20,7 @@ type MessageRepository interface {
 
 	// Users
 	UserExists(id uint) (bool, error)
+	GetContactIDs(userID uint) ([]uint, error)
 }
 
 type messageRepository struct {
@@ -146,4 +147,20 @@ func (r *messageRepository) UserExists(id uint) (bool, error) {
 	var count int64
 	err := r.db.Table("users").Where("id = ?", id).Count(&count).Error
 	return count > 0, err
+}
+
+func (r *messageRepository) GetContactIDs(userID uint) ([]uint, error) {
+	var ids []uint
+
+	err := r.db.Model(&entity.RoomMember{}).
+		Where("room_id IN (?)",
+			r.db.Model(&entity.RoomMember{}).
+				Select("room_id").
+				Where("user_id = ?", userID),
+		).
+		Where("user_id <> ?", userID).
+		Distinct().
+		Pluck("user_id", &ids).Error
+
+	return ids, err
 }

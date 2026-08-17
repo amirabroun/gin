@@ -4,7 +4,7 @@ import "time"
 
 type RoomMember struct {
 	RoomID   uint      `gorm:"primaryKey" json:"room_id"`
-	UserID   uint      `gorm:"primaryKey" json:"user_id"`
+	UserID   uint      `gorm:"primaryKey;index" json:"user_id"`
 	JoinedAt time.Time `json:"joined_at"`
 }
 

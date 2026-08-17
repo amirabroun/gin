@@ -1,7 +1,6 @@
 package service
 
 import (
-	"encoding/json"
 	"errors"
 
 	"gin/internal/message/entity"
@@ -66,10 +65,14 @@ func (s *MessageService) Send(senderID, roomID uint, content string) error {
 
 	s.hub.PublishToRoom(&ws.RoomMessage{
 		MemberIDs: memberIDs,
-		Payload:   mustMarshal(msg),
+		Payload:   ws.MustEnvelope(ws.MessageTypeMessage, msg),
 	})
 
 	return nil
+}
+
+func (s *MessageService) GetContactIDs(userID uint) ([]uint, error) {
+	return s.repo.GetContactIDs(userID)
 }
 
 func (s *MessageService) GetRoomMessages(userID, roomID uint, limit, offset int) ([]entity.Message, error) {
@@ -82,12 +85,4 @@ func (s *MessageService) GetRoomMessages(userID, roomID uint, limit, offset int)
 	}
 
 	return s.repo.GetRoomMessages(roomID, limit, offset)
-}
-
-func mustMarshal(msg entity.Message) []byte {
-	data, err := json.Marshal(msg)
-	if err != nil {
-		panic(err)
-	}
-	return data
 }

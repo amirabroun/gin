@@ -62,6 +62,11 @@ func (h *MessageHandler) HandleWebSocket(c *gin.Context) {
 
 	client := ws.NewClient(userID, conn)
 
+	contacts, err := h.svc.GetContactIDs(userID)
+	if err == nil {
+		client.SetContacts(contacts)
+	}
+
 	onMessage := func(raw []byte) {
 		var msg incomingMessage
 		err := json.Unmarshal(raw, &msg)
