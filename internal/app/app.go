@@ -5,17 +5,15 @@ import (
 	"gorm.io/gorm"
 
 	"gin/internal/database"
+	"gin/internal/message"
 	user "gin/internal/user"
 )
 
 type App struct {
-	DB      *gorm.DB
-	Router  *gin.Engine
-	Modules []Module
-}
-
-type Module interface {
-	RegisterRoutes(router *gin.Engine)
+	DB            *gorm.DB
+	Router        *gin.Engine
+	UserModule    *user.Module
+	MessageModule *message.Module
 }
 
 func New() *App {
@@ -29,15 +27,17 @@ func (app *App) RegisterDefaultDatabase() {
 }
 
 func (app *App) RegisterModules() {
-	app.Modules = []Module{
-		user.New(app.DB),
-	}
+	app.UserModule = user.New(app.DB)
+	app.MessageModule = message.New(app.DB)
 }
 
 func (app *App) RegisterRoutes() {
 	app.Router.SetTrustedProxies(nil)
 
-	for _, module := range app.Modules {
-		module.RegisterRoutes(app.Router)
-	}
+	app.UserModule.RegisterRoutes(app.Router)
+
+	requireAuth := app.UserModule.Middleware.RequireAuth()
+	app.MessageModule.RegisterRoutes(app.Router, requireAuth)
+
+	app.MessageModule.Run()
 }

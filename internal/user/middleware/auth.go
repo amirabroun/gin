@@ -23,6 +23,12 @@ func (m *Middleware) RequireAuth() gin.HandlerFunc {
 		token := c.GetHeader("Authorization")
 		token = strings.TrimPrefix(token, "Bearer ")
 
+		// WebSocket handshakes cannot set custom headers from the browser,
+		// so the token is also accepted as a query parameter.
+		if token == "" {
+			token = c.Query("token")
+		}
+
 		if token == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "not have token"})
 			c.Abort()
