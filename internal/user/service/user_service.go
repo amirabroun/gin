@@ -24,6 +24,10 @@ func (s *UserService) GetByID(id uint, with ...string) (*entity.User, error) {
 	return s.repo.FindByID(id, with...)
 }
 
+func (s *UserService) List() ([]entity.User, error) {
+	return s.repo.List()
+}
+
 func (s *UserService) StoreUserPost(post entity.Post) error {
 	return s.repo.StorePost(post)
 }

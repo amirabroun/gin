@@ -47,6 +47,16 @@ func (h *UserHandler) GetUser(c *gin.Context) {
 	c.JSON(http.StatusOK, user)
 }
 
+func (h *UserHandler) GetUsers(c *gin.Context) {
+	users, err := h.svc.List()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list users"})
+		return
+	}
+
+	c.JSON(http.StatusOK, users)
+}
+
 func (h *UserHandler) GetAuthUserPosts(c *gin.Context) {
 	authUserID, exists := c.Get("auth_user_id")
 	if !exists {
