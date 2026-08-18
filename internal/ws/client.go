@@ -14,31 +14,39 @@ const (
 	pongWait       = 60 * time.Second
 	pingPeriod     = (pongWait * 9) / 10
 	maxMessageSize = 512 * 1024
+	outboxCapacity = 256
 )
 
 type Client struct {
-	userID     uint
-	contacts   []uint
-	outbox     chan []byte
-	connection *websocket.Conn
-	closeOnce  sync.Once
+	hub         *Hub
+	userID      uint
+	contacts    []uint
+	outbox      chan []byte
+	connection  *websocket.Conn
+	closeOnce   sync.Once
+	offlineOnce sync.Once
 }
 
-func NewClient(userID uint, connection *websocket.Conn) *Client {
+func NewClient(hub *Hub, userID uint, connection *websocket.Conn, contacts []uint) *Client {
 	return &Client{
+		hub:        hub,
 		userID:     userID,
+		contacts:   contacts,
 		connection: connection,
-		outbox:     make(chan []byte, maxMessageSize),
+		outbox:     make(chan []byte, outboxCapacity),
 	}
 }
 
-func (c *Client) SetContacts(contactIDs []uint) {
-	c.contacts = contactIDs
+func (c *Client) Serve(onMessage func(*Client, []byte)) {
+	c.hub.Register(c)
+
+	go c.writeLoop()
+	go c.readLoop(onMessage)
 }
 
-func (c *Client) Contacts() []uint {
-	return c.contacts
-}
+func (c *Client) UserID() uint { return c.userID }
+
+func (c *Client) Contacts() []uint { return c.contacts }
 
 func (c *Client) Send(message []byte) (err error) {
 	defer func() {
@@ -62,7 +70,14 @@ func (c *Client) Close() {
 	})
 }
 
-func (c *Client) WriteOnConnection() {
+func (c *Client) fail() {
+	c.offlineOnce.Do(func() {
+		c.hub.Unregister(c)
+		c.Close()
+	})
+}
+
+func (c *Client) writeLoop() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
 		ticker.Stop()
@@ -77,16 +92,16 @@ func (c *Client) WriteOnConnection() {
 				return
 			}
 
-			err := c.writeMessage(websocket.TextMessage, message)
-
-			if err != nil {
+			if err := c.writeMessage(websocket.TextMessage, message); err != nil {
 				log.Printf("ws write error for user %d: %v", c.userID, err)
+				c.fail()
 				return
 			}
 
 		case <-ticker.C:
 			if err := c.writeMessage(websocket.PingMessage, nil); err != nil {
 				log.Printf("ws ping error for user %d: %v", c.userID, err)
+				c.fail()
 				return
 			}
 		}
@@ -99,22 +114,19 @@ func (c *Client) writeMessage(messageType int, payload []byte) error {
 	return c.connection.WriteMessage(messageType, payload)
 }
 
-func (c *Client) ReadFromConnection(onMessage func([]byte), onDisconnect func(*Client)) {
-	defer func() {
-		onDisconnect(c)
-		c.connection.Close()
-	}()
-
+func (c *Client) readLoop(onMessage func(*Client, []byte)) {
+	defer c.connection.Close()
 	c.setReadSettings()
 
 	for {
-		_, message, err := c.connection.ReadMessage()
+		_, raw, err := c.connection.ReadMessage()
 		if err != nil {
 			c.handleReadError(err)
+			c.fail()
 			return
 		}
 
-		onMessage(message)
+		onMessage(c, raw)
 	}
 }
 

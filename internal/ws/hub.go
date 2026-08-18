@@ -42,8 +42,7 @@ func (h *Hub) Run() {
 			h.disconnect(client)
 
 		case roomMessage := <-h.roomMessage:
-			slow := h.sendToUsers(roomMessage.MemberIDs, roomMessage.Payload)
-			h.disconnect(slow...)
+			h.sendAndPrune(roomMessage.MemberIDs, roomMessage.Payload)
 		}
 	}
 }
@@ -57,7 +56,9 @@ func (h *Hub) registerClient(client *Client) {
 
 func (h *Hub) sendOnlineContactsTo(client *Client) {
 	for _, contactID := range client.Contacts() {
-		if !h.isOnline(contactID) {
+		_, ok := h.connections[contactID]
+
+		if !ok {
 			continue
 		}
 
@@ -95,14 +96,11 @@ func (h *Hub) disconnect(clients ...*Client) {
 }
 
 func (h *Hub) broadcastPresence(userID uint, contactIDs []uint, online bool) {
-	slow := h.sendToUsers(contactIDs, presenceEnvelope(userID, online))
-
-	h.disconnect(slow...)
+	h.sendAndPrune(contactIDs, presenceEnvelope(userID, online))
 }
 
-func (h *Hub) isOnline(userID uint) bool {
-	_, ok := h.connections[userID]
-	return ok
+func (h *Hub) sendAndPrune(userIDs []uint, payload []byte) {
+	h.disconnect(h.sendToUsers(userIDs, payload)...)
 }
 
 func presenceEnvelope(userID uint, online bool) []byte {

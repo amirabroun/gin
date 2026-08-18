@@ -60,36 +60,26 @@ func (h *MessageHandler) HandleWebSocket(c *gin.Context) {
 		return
 	}
 
-	client := ws.NewClient(userID, conn)
-
 	contacts, err := h.svc.GetContactIDs(userID)
-	if err == nil {
-		client.SetContacts(contacts)
+	if err != nil {
+		contacts = nil
 	}
 
-	onMessage := func(raw []byte) {
-		var msg incomingMessage
-		err := json.Unmarshal(raw, &msg)
+	client := ws.NewClient(h.hub, userID, conn, contacts)
+	client.Serve(h.handleIncomingMessage)
+}
 
-		if err != nil {
-			return
-		}
-
-		if msg.RoomID == 0 || msg.Content == "" {
-			return
-		}
-
-		err = h.svc.Send(userID, msg.RoomID, msg.Content)
-
-		if err != nil {
-			return
-		}
+func (h *MessageHandler) handleIncomingMessage(client *ws.Client, raw []byte) {
+	var msg incomingMessage
+	if err := json.Unmarshal(raw, &msg); err != nil {
+		return
 	}
 
-	h.hub.Register(client)
+	if msg.RoomID == 0 || msg.Content == "" {
+		return
+	}
 
-	go client.WriteOnConnection()
-	go client.ReadFromConnection(onMessage, h.hub.Unregister)
+	_ = h.svc.Send(client.UserID(), msg.RoomID, msg.Content)
 }
 
 func (h *MessageHandler) GetRoomMessages(c *gin.Context) {
