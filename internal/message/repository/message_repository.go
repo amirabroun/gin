@@ -13,6 +13,8 @@ type MessageRepository interface {
 	AddMember(roomID, userID uint) error
 	IsMember(roomID, userID uint) (bool, error)
 	GetRoomMemberIDs(roomID uint) ([]uint, error)
+	GetUserRooms(userID uint) ([]entity.Room, error)
+	CreateGroupRoom(creatorID uint, memberIDs []uint, name string) (*entity.Room, error)
 
 	// Messages
 	Store(msg *entity.Message) error
@@ -126,6 +128,49 @@ func (r *messageRepository) GetRoomMemberIDs(roomID uint) ([]uint, error) {
 		Where("room_id = ?", roomID).
 		Pluck("user_id", &ids).Error
 	return ids, err
+}
+
+func (r *messageRepository) GetUserRooms(userID uint) ([]entity.Room, error) {
+	var rooms []entity.Room
+
+	err := r.db.
+		Joins("JOIN room_members rm ON rm.room_id = rooms.id").
+		Where("rm.user_id = ?", userID).
+		Preload("Members").
+		Order("rooms.created_at DESC").
+		Find(&rooms).Error
+
+	return rooms, err
+}
+
+func (r *messageRepository) CreateGroupRoom(creatorID uint, memberIDs []uint, name string) (*entity.Room, error) {
+	var room *entity.Room
+
+	err := r.db.Transaction(func(tx *gorm.DB) error {
+		newRoom := entity.Room{Type: entity.RoomTypeGroup, Name: &name}
+		if err := tx.Create(&newRoom).Error; err != nil {
+			return err
+		}
+
+		members := []entity.RoomMember{
+			{RoomID: newRoom.ID, UserID: creatorID},
+		}
+		for _, id := range memberIDs {
+			if id == creatorID {
+				continue
+			}
+			members = append(members, entity.RoomMember{RoomID: newRoom.ID, UserID: id})
+		}
+
+		if err := tx.Create(&members).Error; err != nil {
+			return err
+		}
+
+		room = &newRoom
+		return nil
+	})
+
+	return room, err
 }
 
 func (r *messageRepository) Store(msg *entity.Message) error {

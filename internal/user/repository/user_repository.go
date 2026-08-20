@@ -11,6 +11,7 @@ type UserRepository interface {
 	FindByMobile(mobile string) (*entity.User, error)
 	List() ([]entity.User, error)
 	StorePost(post entity.Post) error
+	Create(user *entity.User) error
 }
 
 type userRepository struct {
@@ -59,4 +60,8 @@ func (r *userRepository) FindByMobile(mobile string) (*entity.User, error) {
 	}
 
 	return &user, nil
+}
+
+func (r *userRepository) Create(user *entity.User) error {
+	return r.db.Create(user).Error
 }

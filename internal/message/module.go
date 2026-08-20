@@ -41,6 +41,8 @@ func (m *Module) RegisterRoutes(router *gin.Engine, requireAuth gin.HandlerFunc)
 	messages := router.Group("messages", requireAuth)
 	{
 		messages.POST("direct", m.Handler.StartDirectChat)
+		messages.POST("groups", m.Handler.CreateGroupRoom)
+		messages.GET("rooms", m.Handler.GetUserRooms)
 		messages.GET("rooms/:roomID", m.Handler.GetRoomMessages)
 	}
 

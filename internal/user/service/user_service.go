@@ -9,7 +9,10 @@ import (
 	"gin/internal/user/repository"
 )
 
-var ErrInvalidCredentials = errors.New("invalid credentials")
+var (
+	ErrInvalidCredentials = errors.New("invalid credentials")
+	ErrUserAlreadyExists  = errors.New("user already exists")
+)
 
 // UserService holds the domain/business logic of the user bounded context.
 type UserService struct {
@@ -40,6 +43,28 @@ func (s *UserService) Login(mobile, password string) (*entity.User, error) {
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
 		return nil, ErrInvalidCredentials
+	}
+
+	return user, nil
+}
+
+func (s *UserService) Register(mobile, password string) (*entity.User, error) {
+	if _, err := s.repo.FindByMobile(mobile); err == nil {
+		return nil, ErrUserAlreadyExists
+	}
+
+	hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, err
+	}
+
+	user := &entity.User{
+		Mobile:   mobile,
+		Password: string(hashed),
+	}
+
+	if err := s.repo.Create(user); err != nil {
+		return nil, err
 	}
 
 	return user, nil

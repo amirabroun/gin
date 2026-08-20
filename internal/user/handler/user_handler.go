@@ -24,6 +24,11 @@ type LoginRequest struct {
 	Password string `json:"password" binding:"required"`
 }
 
+type RegisterRequest struct {
+	Mobile   string `json:"mobile" binding:"required"`
+	Password string `json:"password" binding:"required"`
+}
+
 type CreatePost struct {
 	Title   string `json:"title" binding:"required"`
 	Content string `json:"content" binding:"required"`
@@ -113,6 +118,27 @@ func (h *UserHandler) StoreAuthUserPost(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, nil)
+}
+
+func (h *UserHandler) Register(c *gin.Context) {
+	var request RegisterRequest
+
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	user, err := h.svc.Register(request.Mobile, request.Password)
+	if err != nil {
+		if err == service.ErrUserAlreadyExists {
+			c.JSON(http.StatusConflict, gin.H{"error": "user already exists"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to register user"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"id": user.ID, "mobile": user.Mobile})
 }
 
 func (h *UserHandler) Login(c *gin.Context) {

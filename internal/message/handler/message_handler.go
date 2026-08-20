@@ -30,6 +30,11 @@ type startDirectChatRequest struct {
 	TargetUserID uint `json:"target_user_id"`
 }
 
+type createGroupRoomRequest struct {
+	Name      string `json:"name"`
+	MemberIDs []uint `json:"member_ids"`
+}
+
 type MessageHandler struct {
 	svc *service.MessageService
 	hub *ws.Hub
@@ -131,6 +136,56 @@ func (h *MessageHandler) GetRoomMessages(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, messages)
+}
+
+func (h *MessageHandler) GetUserRooms(c *gin.Context) {
+	userID, ok := authUserID(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	rooms, err := h.svc.GetUserRooms(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load rooms"})
+		return
+	}
+	if rooms == nil {
+		rooms = []entity.Room{}
+	}
+
+	c.JSON(http.StatusOK, rooms)
+}
+
+func (h *MessageHandler) CreateGroupRoom(c *gin.Context) {
+	userID, ok := authUserID(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	var req createGroupRoomRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	room, err := h.svc.CreateGroupRoom(userID, req.MemberIDs, req.Name)
+	if err != nil {
+		switch err {
+		case service.ErrInvalidRoomName:
+			c.JSON(http.StatusBadRequest, gin.H{"error": "room name is required"})
+		case service.ErrNoGroupMembers:
+			c.JSON(http.StatusBadRequest, gin.H{"error": "member_ids is required"})
+		case service.ErrUserNotFound:
+			c.JSON(http.StatusNotFound, gin.H{"error": "one or more users not found"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create group room"})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"room_id": room.ID})
 }
 
 func (h *MessageHandler) StartDirectChat(c *gin.Context) {

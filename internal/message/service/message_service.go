@@ -9,9 +9,11 @@ import (
 )
 
 var (
-	ErrUserNotFound   = errors.New("user not found")
-	ErrNotRoomMember  = errors.New("user is not a member of this room")
-	ErrSelfDirectChat = errors.New("cannot start a direct chat with yourself")
+	ErrUserNotFound    = errors.New("user not found")
+	ErrNotRoomMember   = errors.New("user is not a member of this room")
+	ErrSelfDirectChat  = errors.New("cannot start a direct chat with yourself")
+	ErrNoGroupMembers  = errors.New("group room requires at least one member")
+	ErrInvalidRoomName = errors.New("room name is required")
 )
 
 type MessageService struct {
@@ -98,6 +100,36 @@ func removeID(ids []uint, target uint) []uint {
 
 func (s *MessageService) GetContactIDs(userID uint) ([]uint, error) {
 	return s.repo.GetContactIDs(userID)
+}
+
+func (s *MessageService) GetUserRooms(userID uint) ([]entity.Room, error) {
+	return s.repo.GetUserRooms(userID)
+}
+
+func (s *MessageService) CreateGroupRoom(creatorID uint, memberIDs []uint, name string) (*entity.Room, error) {
+	if name == "" {
+		return nil, ErrInvalidRoomName
+	}
+
+	if len(memberIDs) == 0 {
+		return nil, ErrNoGroupMembers
+	}
+
+	// Validate that every target user exists.
+	for _, id := range memberIDs {
+		if id == creatorID {
+			continue
+		}
+		exists, err := s.repo.UserExists(id)
+		if err != nil {
+			return nil, err
+		}
+		if !exists {
+			return nil, ErrUserNotFound
+		}
+	}
+
+	return s.repo.CreateGroupRoom(creatorID, memberIDs, name)
 }
 
 func (s *MessageService) GetRoomMessages(userID, roomID uint, limit, offset int) ([]entity.Message, error) {

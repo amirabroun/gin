@@ -33,6 +33,7 @@ func New(db *gorm.DB) *Module {
 }
 
 func (m *Module) RegisterRoutes(router *gin.Engine) {
+	router.POST("register", m.Handler.Register)
 	router.POST("login", m.Handler.Login)
 
 	users := router.Group("users")
