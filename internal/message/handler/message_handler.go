@@ -65,11 +65,18 @@ func (h *MessageHandler) HandleWebSocket(c *gin.Context) {
 		contacts = nil
 	}
 
-	client := ws.NewClient(h.hub, userID, conn, contacts)
-	client.Serve(h.handleIncomingMessage)
+	ws.NewClient(h.hub, userID, conn, contacts).Serve(h.handleIncomingMessage)
 }
 
 func (h *MessageHandler) handleIncomingMessage(client *ws.Client, raw []byte) {
+	var env struct {
+		Type string `json:"type"`
+	}
+
+	if err := json.Unmarshal(raw, &env); err != nil {
+		return
+	}
+
 	var msg incomingMessage
 	if err := json.Unmarshal(raw, &msg); err != nil {
 		return
@@ -79,7 +86,13 @@ func (h *MessageHandler) handleIncomingMessage(client *ws.Client, raw []byte) {
 		return
 	}
 
-	_ = h.svc.Send(client.UserID(), msg.RoomID, msg.Content)
+	switch env.Type {
+		case ws.MessageTypeMessage:
+			h.svc.Send(client.UserID(), msg.RoomID, msg.Content)
+
+		case ws.MessageTypeTyping:
+			h.svc.PublishTyping(client.UserID(), msg.RoomID, msg.Content)
+	}
 }
 
 func (h *MessageHandler) GetRoomMessages(c *gin.Context) {

@@ -21,7 +21,7 @@ type Client struct {
 	hub         *Hub
 	userID      uint
 	contacts    []uint
-	outbox      chan []byte
+	outbox      chan Envelope
 	connection  *websocket.Conn
 	closeOnce   sync.Once
 	offlineOnce sync.Once
@@ -33,7 +33,7 @@ func NewClient(hub *Hub, userID uint, connection *websocket.Conn, contacts []uin
 		userID:     userID,
 		contacts:   contacts,
 		connection: connection,
-		outbox:     make(chan []byte, outboxCapacity),
+		outbox:     make(chan Envelope, outboxCapacity),
 	}
 }
 
@@ -48,7 +48,7 @@ func (c *Client) UserID() uint { return c.userID }
 
 func (c *Client) Contacts() []uint { return c.contacts }
 
-func (c *Client) Send(message []byte) (err error) {
+func (c *Client) Send(envelope Envelope) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = errors.New("client outbox is closed")
@@ -56,11 +56,11 @@ func (c *Client) Send(message []byte) (err error) {
 	}()
 
 	select {
-	case c.outbox <- message:
-		return nil
+		case c.outbox <- envelope:
+			return nil
 
-	default:
-		return errors.New("client outbox is closed")
+		default:
+			return errors.New("client outbox is closed")
 	}
 }
 
@@ -86,26 +86,46 @@ func (c *Client) writeLoop() {
 
 	for {
 		select {
-		case message, ok := <-c.outbox:
-			if !ok {
-				c.writeMessage(websocket.CloseMessage, []byte{})
-				return
-			}
+			case envelope, ok := <-c.outbox:
+				if !c.writeEnvelope(envelope, ok) {
+					return
+				}
 
-			if err := c.writeMessage(websocket.TextMessage, message); err != nil {
-				log.Printf("ws write error for user %d: %v", c.userID, err)
-				c.fail()
-				return
-			}
-
-		case <-ticker.C:
-			if err := c.writeMessage(websocket.PingMessage, nil); err != nil {
-				log.Printf("ws ping error for user %d: %v", c.userID, err)
-				c.fail()
-				return
-			}
+			case <-ticker.C:
+				if !c.writePing() {
+					return
+				}
 		}
 	}
+}
+
+func (c *Client) writeEnvelope(envelope Envelope, ok bool) bool {
+	if !ok {
+		c.writeMessage(websocket.CloseMessage, []byte{})
+		return false
+	}
+
+	wire, err := envelope.Marshal()
+	if err != nil {
+		c.fail()
+		return false
+	}
+
+	if err := c.writeMessage(websocket.TextMessage, wire); err != nil {
+		c.fail()
+		return false
+	}
+
+	return true
+}
+
+func (c *Client) writePing() bool {
+	if err := c.writeMessage(websocket.PingMessage, nil); err != nil {
+		c.fail()
+		return false
+	}
+
+	return true
 }
 
 func (c *Client) writeMessage(messageType int, payload []byte) error {

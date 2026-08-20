@@ -5,34 +5,80 @@ import "encoding/json"
 const (
 	MessageTypeMessage  = "message"
 	MessageTypePresence = "presence"
+	MessageTypeTyping   = "typing"
 )
 
 type Envelope struct {
 	Type    string          `json:"type"`
 	Payload json.RawMessage `json:"payload"`
+	To      []uint          `json:"-"`
 }
 
-type PresencePayload struct {
+type message struct {
+	SenderID uint   `json:"user_id"`
+	RoomID   uint   `json:"room_id"`
+	Content  string `json:"content"`
+}
+
+type presence struct {
 	UserID uint `json:"user_id"`
 	Online bool `json:"online"`
 }
 
-func NewEnvelope(messageType string, payload any) ([]byte, error) {
-	raw, err := json.Marshal(payload)
-	if err != nil {
-		return nil, err
-	}
+type typing struct {
+	UserID  uint   `json:"user_id"`
+	RoomID  uint   `json:"room_id"`
+	Content string `json:"content"`
+}
 
-	return json.Marshal(Envelope{
-		Type:    messageType,
-		Payload: raw,
+func PresenceEnvelope(userID uint, online bool) Envelope {
+	return newEnvelope(MessageTypePresence, presence{
+		UserID: userID,
+		Online: online,
 	})
 }
 
-func MustEnvelope(messageType string, payload any) []byte {
-	data, err := NewEnvelope(messageType, payload)
+func MessageEnvelope(senderID uint, roomID uint, content string) Envelope {
+	return newEnvelope(MessageTypeMessage, message{
+		SenderID: senderID,
+		RoomID:   roomID,
+		Content:  content,
+	})
+}
+
+func TypingEnvelope(senderID uint, roomID uint, content string) Envelope {
+	return newEnvelope(MessageTypeTyping, typing{
+		UserID:  senderID,
+		RoomID:  roomID,
+		Content: content,
+	})
+}
+
+func newEnvelope(messageType string, payload any) Envelope {
+	raw, err := json.Marshal(payload)
+
 	if err != nil {
 		panic(err)
 	}
-	return data
+
+	return Envelope{
+		Type:    messageType,
+		Payload: raw,
+	}
+}
+
+func (e Envelope) ToUsers(userIDs []uint) Envelope {
+	e.To = userIDs
+
+	return e
+}
+
+func (e Envelope) ToUser(userID uint) Envelope {
+	e.To = []uint{userID}
+
+	return e
+}
+
+func (e Envelope) Marshal() ([]byte, error) {
+	return json.Marshal(e)
 }

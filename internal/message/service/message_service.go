@@ -63,12 +63,37 @@ func (s *MessageService) Send(senderID, roomID uint, content string) error {
 		return err
 	}
 
-	s.hub.PublishToRoom(&ws.RoomMessage{
-		MemberIDs: memberIDs,
-		Payload:   ws.MustEnvelope(ws.MessageTypeMessage, msg),
-	})
+	s.hub.Deliver(ws.MessageEnvelope(senderID, roomID, content).ToUsers(memberIDs))
 
 	return nil
+}
+
+func (s *MessageService) PublishTyping(senderID, roomID uint, content string) {
+	isMember, err := s.repo.IsMember(roomID, senderID)
+	if err != nil || !isMember {
+		return
+	}
+
+	memberIDs, err := s.repo.GetRoomMemberIDs(roomID)
+	if err != nil {
+		return
+	}
+
+	memberIDs = removeID(memberIDs, senderID)
+
+	s.hub.Deliver(ws.TypingEnvelope(senderID, roomID, content).ToUsers(memberIDs))
+}
+
+func removeID(ids []uint, target uint) []uint {
+	filtered := ids[:0]
+
+	for _, id := range ids {
+		if id != target {
+			filtered = append(filtered, id)
+		}
+	}
+
+	return filtered
 }
 
 func (s *MessageService) GetContactIDs(userID uint) ([]uint, error) {

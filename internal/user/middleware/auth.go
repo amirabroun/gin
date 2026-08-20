@@ -25,6 +25,10 @@ func (m *Middleware) RequireAuth() gin.HandlerFunc {
 
 		// WebSocket handshakes cannot set custom headers from the browser,
 		// so the token is also accepted as a query parameter.
+		// auth_token is the canonical name used by the frontend.
+		if token == "" {
+			token = c.Query("auth_token")
+		}
 		if token == "" {
 			token = c.Query("token")
 		}
