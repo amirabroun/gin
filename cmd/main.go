@@ -8,6 +8,7 @@ func main() {
 	app.RegisterDefaultDatabase()
 	app.RegisterModules()
 	app.RegisterRoutes()
+	app.StartBackgroundWorkers()
 
 	app.Router.Run(":8090")
 }

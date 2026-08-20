@@ -17,8 +17,11 @@ type App struct {
 }
 
 func New() *App {
+	router := gin.Default()
+	router.SetTrustedProxies(nil)
+
 	return &App{
-		Router: gin.Default(),
+		Router: router,
 	}
 }
 
@@ -32,12 +35,12 @@ func (app *App) RegisterModules() {
 }
 
 func (app *App) RegisterRoutes() {
-	app.Router.SetTrustedProxies(nil)
-
 	app.UserModule.RegisterRoutes(app.Router)
 
 	requireAuth := app.UserModule.Middleware.RequireAuth()
 	app.MessageModule.RegisterRoutes(app.Router, requireAuth)
+}
 
-	app.MessageModule.Run()
+func (app *App) StartBackgroundWorkers() {
+	go app.MessageModule.Run()
 }
