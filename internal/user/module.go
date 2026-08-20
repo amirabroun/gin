@@ -39,6 +39,7 @@ func (m *Module) RegisterRoutes(router *gin.Engine) {
 	users := router.Group("users")
 	{
 		users.GET("", m.Middleware.RequireAuth(), m.Handler.GetUsers)
+		users.GET("me", m.Middleware.RequireAuth(), m.Handler.GetAuthUser)
 		users.GET(":id", m.Handler.GetUser)
 	}
 

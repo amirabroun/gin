@@ -103,7 +103,55 @@ func (s *MessageService) GetContactIDs(userID uint) ([]uint, error) {
 }
 
 func (s *MessageService) GetUserRooms(userID uint) ([]entity.Room, error) {
-	return s.repo.GetUserRooms(userID)
+	rooms, err := s.repo.GetUserRooms(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	names, err := s.repo.GetUserNames(collectDirectPeerIDs(rooms, userID))
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range rooms {
+		if rooms[i].Type == entity.RoomTypeDirect {
+			rooms[i].Name = peerDisplayName(rooms[i].Members, userID, names)
+		}
+	}
+
+	return rooms, nil
+}
+
+func collectDirectPeerIDs(rooms []entity.Room, ownID uint) []uint {
+	seen := make(map[uint]struct{}, len(rooms))
+	ids := make([]uint, 0, len(rooms))
+	for _, room := range rooms {
+		if room.Type != entity.RoomTypeDirect {
+			continue
+		}
+		for _, m := range room.Members {
+			if m.UserID != ownID {
+				if _, dup := seen[m.UserID]; !dup {
+					seen[m.UserID] = struct{}{}
+					ids = append(ids, m.UserID)
+				}
+				break
+			}
+		}
+	}
+	return ids
+}
+
+func peerDisplayName(members []entity.RoomMember, ownID uint, names map[uint]string) *string {
+	for _, m := range members {
+		if m.UserID != ownID {
+			if name, ok := names[m.UserID]; ok {
+				return &name
+			}
+			break
+		}
+	}
+	return nil
 }
 
 func (s *MessageService) CreateGroupRoom(creatorID uint, memberIDs []uint, name string) (*entity.Room, error) {

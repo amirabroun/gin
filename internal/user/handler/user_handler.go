@@ -25,6 +25,7 @@ type LoginRequest struct {
 }
 
 type RegisterRequest struct {
+	Name     string `json:"name" binding:"required"`
 	Mobile   string `json:"mobile" binding:"required"`
 	Password string `json:"password" binding:"required"`
 }
@@ -46,6 +47,28 @@ func (h *UserHandler) GetUser(c *gin.Context) {
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "not found any user"})
+		return
+	}
+
+	c.JSON(http.StatusOK, user)
+}
+
+func (h *UserHandler) GetAuthUser(c *gin.Context) {
+	authUserID, exists := c.Get("auth_user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	userId, ok := authUserID.(uint)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user id in context"})
+		return
+	}
+
+	user, err := h.svc.GetByID(userId)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
 		return
 	}
 
@@ -128,7 +151,7 @@ func (h *UserHandler) Register(c *gin.Context) {
 		return
 	}
 
-	user, err := h.svc.Register(request.Mobile, request.Password)
+	user, err := h.svc.Register(request.Mobile, request.Password, request.Name)
 	if err != nil {
 		if err == service.ErrUserAlreadyExists {
 			c.JSON(http.StatusConflict, gin.H{"error": "user already exists"})

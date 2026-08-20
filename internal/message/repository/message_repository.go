@@ -14,6 +14,7 @@ type MessageRepository interface {
 	IsMember(roomID, userID uint) (bool, error)
 	GetRoomMemberIDs(roomID uint) ([]uint, error)
 	GetUserRooms(userID uint) ([]entity.Room, error)
+	GetUserNames(ids []uint) (map[uint]string, error)
 	CreateGroupRoom(creatorID uint, memberIDs []uint, name string) (*entity.Room, error)
 
 	// Messages
@@ -137,10 +138,44 @@ func (r *messageRepository) GetUserRooms(userID uint) ([]entity.Room, error) {
 		Joins("JOIN room_members rm ON rm.room_id = rooms.id").
 		Where("rm.user_id = ?", userID).
 		Preload("Members").
+		Preload("LastMessage", func(db *gorm.DB) *gorm.DB {
+			return db.Joins(
+				"JOIN (SELECT MAX(id) AS max_id FROM messages WHERE room_id IN (SELECT room_id FROM room_members WHERE user_id = ?) GROUP BY room_id) lm ON lm.max_id = messages.id",
+				userID,
+			)
+		}).
 		Order("rooms.created_at DESC").
 		Find(&rooms).Error
 
 	return rooms, err
+}
+
+func (r *messageRepository) GetUserNames(ids []uint) (map[uint]string, error) {
+	names := map[uint]string{}
+
+	if len(ids) == 0 {
+		return names, nil
+	}
+
+	type userRow struct {
+		ID   uint
+		Name string
+	}
+
+	var rows []userRow
+	err := r.db.Table("users").
+		Select("id, name").
+		Where("id IN (?)", ids).
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+
+	for _, row := range rows {
+		names[row.ID] = row.Name
+	}
+
+	return names, nil
 }
 
 func (r *messageRepository) CreateGroupRoom(creatorID uint, memberIDs []uint, name string) (*entity.Room, error) {

@@ -48,7 +48,7 @@ func (s *UserService) Login(mobile, password string) (*entity.User, error) {
 	return user, nil
 }
 
-func (s *UserService) Register(mobile, password string) (*entity.User, error) {
+func (s *UserService) Register(mobile, password, name string) (*entity.User, error) {
 	if _, err := s.repo.FindByMobile(mobile); err == nil {
 		return nil, ErrUserAlreadyExists
 	}
@@ -59,6 +59,7 @@ func (s *UserService) Register(mobile, password string) (*entity.User, error) {
 	}
 
 	user := &entity.User{
+		Name:     name,
 		Mobile:   mobile,
 		Password: string(hashed),
 	}
