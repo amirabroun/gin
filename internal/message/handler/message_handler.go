@@ -35,6 +35,16 @@ type createGroupRoomRequest struct {
 	MemberIDs []uint `json:"member_ids"`
 }
 
+type markReadRequest struct {
+	RoomID    uint `json:"room_id" binding:"required"`
+	MessageID uint `json:"message_id" binding:"required"`
+}
+
+type markAllReadRequest struct {
+	RoomID    uint `json:"room_id" binding:"required"`
+	MessageID uint `json:"message_id" binding:"required"`
+}
+
 type MessageHandler struct {
 	svc *service.MessageService
 	hub *ws.Hub
@@ -87,16 +97,16 @@ func (h *MessageHandler) handleIncomingMessage(client *ws.Client, raw []byte) {
 		return
 	}
 
-	if msg.RoomID == 0 || msg.Content == "" {
+	if msg.RoomID == 0 {
 		return
 	}
 
 	switch env.Type {
-		case ws.MessageTypeMessage:
-			h.svc.Send(client.UserID(), msg.RoomID, msg.Content)
+	case ws.MessageTypeMessage:
+		h.svc.Send(client.UserID(), msg.RoomID, msg.Content)
 
-		case ws.MessageTypeTyping:
-			h.svc.PublishTyping(client.UserID(), msg.RoomID, msg.Content)
+	case ws.MessageTypeTyping:
+		h.svc.PublishTyping(client.UserID(), msg.RoomID, msg.Content)
 	}
 }
 
@@ -107,8 +117,8 @@ func (h *MessageHandler) GetRoomMessages(c *gin.Context) {
 		return
 	}
 
-	roomID, err := strconv.Atoi(c.Param("roomID"))
-	if err != nil {
+	roomID, err := strconv.ParseUint(c.Param("roomID"), 10, 64)
+	if err != nil || roomID == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid room id"})
 		return
 	}
@@ -188,6 +198,117 @@ func (h *MessageHandler) CreateGroupRoom(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"room_id": room.ID})
 }
 
+func (h *MessageHandler) MarkRead(c *gin.Context) {
+	userID, ok := authUserID(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	var req markReadRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		return
+	}
+
+	// Validate room_id and message_id
+	if req.RoomID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "room_id is required and must be greater than 0"})
+		return
+	}
+	if req.MessageID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "message_id is required and must be greater than 0"})
+		return
+	}
+
+	if err := h.svc.MarkRead(userID, req.RoomID, req.MessageID); err != nil {
+		switch {
+		case errors.Is(err, service.ErrNotRoomMember):
+			c.JSON(http.StatusForbidden, gin.H{"error": "you are not a member of this room"})
+			return
+		case errors.Is(err, service.ErrInvalidMessage):
+			c.JSON(http.StatusBadRequest, gin.H{"error": "message does not belong to this room"})
+			return
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to mark message as read"})
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "message marked as read",
+	})
+}
+
+func (h *MessageHandler) GetReadStates(c *gin.Context) {
+	userID, ok := authUserID(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	states, err := h.svc.GetReadStates(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load read states"})
+		return
+	}
+	if states == nil {
+		states = []entity.RoomState{}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    states,
+		"count":   len(states),
+	})
+}
+
+func (h *MessageHandler) GetRoomReadStates(c *gin.Context) {
+	userID, ok := authUserID(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	// Validate roomID parameter
+	roomID, err := strconv.ParseUint(c.Param("roomID"), 10, 64)
+	if err != nil || roomID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid room_id parameter",
+			"hint":  "room_id must be a positive integer",
+		})
+		return
+	}
+
+	states, err := h.svc.GetRoomReadStates(userID, uint(roomID))
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrNotRoomMember):
+			c.JSON(http.StatusForbidden, gin.H{
+				"error": "forbidden",
+				"hint":  "you are not a member of this room",
+			})
+			return
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "failed to load room read states",
+			})
+			return
+		}
+	}
+	if states == nil {
+		states = []entity.RoomState{}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    states,
+		"count":   len(states),
+		"room_id": roomID,
+	})
+}
+
 func (h *MessageHandler) StartDirectChat(c *gin.Context) {
 	userID, ok := authUserID(c)
 	if !ok {
@@ -220,4 +341,34 @@ func (h *MessageHandler) StartDirectChat(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"room_id": room.ID})
+}
+
+func (h *MessageHandler) MarkAllRead(c *gin.Context) {
+	userID, ok := authUserID(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	var req markAllReadRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		return
+	}
+
+	// Validate room_id
+	if req.RoomID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "room_id is required and must be greater than 0"})
+		return
+	}
+
+	if err := h.svc.MarkAllRead(userID, req.RoomID, req.MessageID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to mark all messages as read"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "all messages marked as read",
+	})
 }

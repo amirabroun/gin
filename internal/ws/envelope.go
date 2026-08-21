@@ -15,7 +15,8 @@ type Envelope struct {
 }
 
 type message struct {
-	SenderID uint   `json:"user_id"`
+	ID       uint   `json:"id"`
+	SenderID uint   `json:"sender_id"`
 	RoomID   uint   `json:"room_id"`
 	Content  string `json:"content"`
 }
@@ -38,8 +39,9 @@ func PresenceEnvelope(userID uint, online bool) Envelope {
 	})
 }
 
-func MessageEnvelope(senderID uint, roomID uint, content string) Envelope {
+func MessageEnvelope(senderID uint, roomID uint, content string, messageID uint) Envelope {
 	return newEnvelope(MessageTypeMessage, message{
+		ID:       messageID,
 		SenderID: senderID,
 		RoomID:   roomID,
 		Content:  content,

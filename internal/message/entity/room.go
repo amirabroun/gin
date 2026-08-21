@@ -14,4 +14,5 @@ type Room struct {
 	CreatedAt   time.Time    `json:"created_at"`
 	Members     []RoomMember `gorm:"foreignKey:RoomID" json:"members,omitempty"`
 	LastMessage *Message     `gorm:"foreignKey:RoomID" json:"last_message,omitempty"`
+	UnreadCount int64        `gorm:"-" json:"unread_count"`
 }

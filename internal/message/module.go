@@ -20,7 +20,7 @@ type Module struct {
 }
 
 func New(db *gorm.DB) *Module {
-	if err := db.AutoMigrate(&entity.Room{}, &entity.RoomMember{}, &entity.Message{}); err != nil {
+	if err := db.AutoMigrate(&entity.Room{}, &entity.RoomMember{}, &entity.Message{}, &entity.RoomState{}); err != nil {
 		panic(err)
 	}
 
@@ -44,6 +44,11 @@ func (m *Module) RegisterRoutes(router *gin.Engine, requireAuth gin.HandlerFunc)
 		messages.POST("groups", m.Handler.CreateGroupRoom)
 		messages.GET("rooms", m.Handler.GetUserRooms)
 		messages.GET("rooms/:roomID", m.Handler.GetRoomMessages)
+	
+		messages.GET("rooms/:roomID/read-states", m.Handler.GetRoomReadStates)
+		messages.POST("read", m.Handler.MarkRead)
+		messages.GET("read", m.Handler.GetReadStates)
+		messages.POST("all-read", m.Handler.MarkAllRead)
 	}
 
 	router.GET("ws", requireAuth, m.Handler.HandleWebSocket)

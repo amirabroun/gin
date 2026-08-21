@@ -14,6 +14,9 @@ var (
 	ErrSelfDirectChat  = errors.New("cannot start a direct chat with yourself")
 	ErrNoGroupMembers  = errors.New("group room requires at least one member")
 	ErrInvalidRoomName = errors.New("room name is required")
+	ErrInvalidMessage  = errors.New("message does not belong to this room")
+	ErrInvalidRoomID   = errors.New("invalid room ID")
+	ErrInvalidUserID   = errors.New("invalid user ID")
 )
 
 type MessageService struct {
@@ -42,13 +45,13 @@ func (s *MessageService) GetOrCreateDirectRoom(userA, userB uint) (*entity.Room,
 	return s.repo.GetOrCreateDirectRoom(userA, userB)
 }
 
-func (s *MessageService) Send(senderID, roomID uint, content string) error {
+func (s *MessageService) Send(senderID, roomID uint, content string) (*entity.Message, error) {
 	isMember, err := s.repo.IsMember(roomID, senderID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if !isMember {
-		return ErrNotRoomMember
+		return nil, ErrNotRoomMember
 	}
 
 	msg := entity.Message{
@@ -57,17 +60,24 @@ func (s *MessageService) Send(senderID, roomID uint, content string) error {
 		Content:  content,
 	}
 	if err := s.repo.Store(&msg); err != nil {
-		return err
+		return nil, err
+	}
+
+	// Mark all messages in this room as read for the sender
+	// (when you send a message, all messages in that chat are considered read)
+	if err := s.repo.MarkAllRead(senderID, roomID, msg.ID); err != nil {
+		// Best-effort; don't fail the send if markAllRead fails
+		// log.Printf("markAllRead failed: %v", err)
 	}
 
 	memberIDs, err := s.repo.GetRoomMemberIDs(roomID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	s.hub.Deliver(ws.MessageEnvelope(senderID, roomID, content).ToUsers(memberIDs))
+	s.hub.Deliver(ws.MessageEnvelope(senderID, roomID, content, msg.ID).ToUsers(memberIDs))
 
-	return nil
+	return &msg, nil
 }
 
 func (s *MessageService) PublishTyping(senderID, roomID uint, content string) {
@@ -190,4 +200,55 @@ func (s *MessageService) GetRoomMessages(userID, roomID uint, limit, offset int)
 	}
 
 	return s.repo.GetRoomMessages(roomID, limit, offset)
+}
+
+func (s *MessageService) MarkRead(userID, roomID, messageID uint) error {
+	if roomID == 0 || userID == 0 {
+		return ErrInvalidRoomID
+	}
+
+	if messageID == 0 {
+		return ErrInvalidMessage
+	}
+
+	return s.repo.MarkReadIfValid(userID, roomID, messageID)
+}
+
+func (s *MessageService) GetReadStates(userID uint) ([]entity.RoomState, error) {
+	if userID == 0 {
+		return nil, ErrInvalidUserID
+	}
+	return s.repo.GetReadStates(userID)
+}
+
+func (s *MessageService) GetRoomReadStates(userID, roomID uint) ([]entity.RoomState, error) {
+	if roomID == 0 || userID == 0 {
+		return nil, ErrInvalidRoomID
+	}
+
+	isMember, err := s.repo.IsMember(roomID, userID)
+	if err != nil {
+		return nil, err
+	}
+	if !isMember {
+		return nil, ErrNotRoomMember
+	}
+
+	states, err := s.repo.GetRoomReadStates(roomID)
+	if err != nil {
+		return nil, err
+	}
+	if states == nil {
+		states = []entity.RoomState{}
+	}
+	return states, nil
+}
+
+// MarkAllRead marks all messages in a room as read for the current user.
+// This is used when the user sends a message - all messages in that chat are considered read.
+func (s *MessageService) MarkAllRead(userID, roomID, messageID uint) error {
+	if roomID == 0 || userID == 0 {
+		return ErrInvalidRoomID
+	}
+	return s.repo.MarkAllRead(userID, roomID, messageID)
 }
