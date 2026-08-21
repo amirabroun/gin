@@ -1,7 +1,7 @@
 package ws
 
 // Hub state (connections map) is owned exclusively by the Run goroutine.
-// All mutations must happen inside Run's select loop. 
+// All mutations must happen inside Run's select loop.
 // Public methods (Register, Unregister, PublishToRoom) only send on channels
 // They must NEVER touch h.connections directly.
 // If you're tempted to add a method that reads/writes h.connections, it belongs inside Run.
@@ -37,9 +37,7 @@ func (h *Hub) Run() {
 				h.disconnect(client)
 
 			case envelope := <-h.deliver:
-				slow := h.send(envelope)
-
-				h.disconnect(slow...)
+				h.sendAndPrune(envelope)
 		}
 	}
 }
@@ -49,11 +47,8 @@ func (h *Hub) connect(client *Client) {
 
 	h.sendOnlineContactsTo(client)
 
-	envelope := PresenceEnvelope(client.userID, true).ToUsers(client.contacts)
-
-	slow := h.send(envelope)
-
-	h.disconnect(slow...)
+	envelope := PresenceEnvelope(client.userID, true).ToUsers(client.Contacts())
+	h.sendAndPrune(envelope)
 }
 
 func (h *Hub) disconnect(clients ...*Client) {
@@ -64,14 +59,15 @@ func (h *Hub) disconnect(clients ...*Client) {
 
 		delete(h.connections, client.userID)
 
-		envelope := PresenceEnvelope(client.userID, false).ToUsers(client.contacts)
-
-		slow := h.send(envelope)
-
-		h.disconnect(slow...)
+		envelope := PresenceEnvelope(client.userID, false).ToUsers(client.Contacts())
+		h.sendAndPrune(envelope)
 
 		client.Close()
 	}
+}
+
+func (h *Hub) sendAndPrune(envelope Envelope) {
+	h.disconnect(h.send(envelope)...)
 }
 
 func (h *Hub) send(envelope Envelope) []*Client {
